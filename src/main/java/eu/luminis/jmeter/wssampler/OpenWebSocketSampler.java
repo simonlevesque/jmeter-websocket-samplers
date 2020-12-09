@@ -37,81 +37,87 @@ import java.util.Map;
 
 public class OpenWebSocketSampler extends WebsocketSampler {
 
-    private static final Logger log = LoggingManager.getLoggerForClass();
+  private static final Logger log = LoggingManager.getLoggerForClass();
 
-    @Override
-    protected WebSocketClient prepareWebSocketClient(SampleResult result) {
-        dispose(threadLocalCachedConnection.get());
-        try {
-            URL url = new URL(getTLS()? "https": "http", getServer(), Integer.parseInt(getPort()), getPath());   // java.net.URL does not support "ws" protocol....
-            return new WebSocketClient(url);
-        } catch (MalformedURLException e) {
-            // Impossible
-            throw new RuntimeException();
-        }
+  @Override
+  protected WebSocketClient prepareWebSocketClient(SampleResult result) {
+    dispose(threadLocalCachedConnection.get());
+    try {
+      if(getPort().isEmpty()){
+        URL url = new URL(getTLS()? "https": "http", getServer(),  getPath());   // java.net.URL does not support "ws" protocol....
+        return new WebSocketClient(url);
+      }
+      else{
+        URL url = new URL(getTLS()? "https": "http", getServer(), Integer.parseInt(getPort()), getPath());   // java.net.URL does not support "ws" protocol....
+        return new WebSocketClient(url);
+      }
+    } catch (MalformedURLException e) {
+      // Impossible
+      throw new RuntimeException();
     }
+  }
 
-    @Override
-    protected Frame doSample(WebSocketClient wsClient, SampleResult result) throws IOException, UnexpectedFrameException {
-        // Intentionally left empty: this sampler does nothing but open the connection.
-        return null;
+  @Override
+  protected Frame doSample(WebSocketClient wsClient, SampleResult result) throws IOException, UnexpectedFrameException {
+    // Intentionally left empty: this sampler does nothing but open the connection.
+    return null;
+  }
+
+  @Override
+  protected String validateArguments() {
+    String errorMsg = validatePortNumber(getPort());
+    if (errorMsg == null)
+      errorMsg = validateConnectionTimeout(getConnectTimeout());
+    if (errorMsg == null)
+      errorMsg = validateReadTimeout(getReadTimeout());
+
+    return errorMsg;
+  }
+
+  @Override
+  public void addTestElement(TestElement element) {
+    if (element instanceof HeaderManager) {
+      headerManager = (HeaderManager) element;
+    } else {
+      super.addTestElement(element);
     }
+  }
 
-    @Override
-    protected String validateArguments() {
-        String errorMsg = validatePortNumber(getPort());
-        if (errorMsg == null)
-            errorMsg = validateConnectionTimeout(getConnectTimeout());
-        if (errorMsg == null)
-            errorMsg = validateReadTimeout(getReadTimeout());
-
-        return errorMsg;
+  private Map<String,String> convertHeaders(HeaderManager headerManager) {
+    Map<String, String> headers = new HashMap<>();
+    for (int i = 0; i < headerManager.size(); i++) {
+      Header header = headerManager.get(i);
+      headers.put(header.getName(), header.getValue());
     }
+    return headers;
+  }
 
-    @Override
-    public void addTestElement(TestElement element) {
-        if (element instanceof HeaderManager) {
-            headerManager = (HeaderManager) element;
-        } else {
-            super.addTestElement(element);
-        }
-    }
+  public String getServer() {
+    return getPropertyAsString("server");
+  }
 
-    private Map<String,String> convertHeaders(HeaderManager headerManager) {
-        Map<String, String> headers = new HashMap<>();
-        for (int i = 0; i < headerManager.size(); i++) {
-            Header header = headerManager.get(i);
-            headers.put(header.getName(), header.getValue());
-        }
-        return headers;
-    }
+  public void setServer(String server) {
+    setProperty("server", server);
+  }
 
-    public String getServer() {
-        return getPropertyAsString("server");
-    }
+  public String getPort() {
+    return getPropertyAsString("port").trim();
+  }
 
-    public void setServer(String server) {
-        setProperty("server", server);
-    }
+  public void setPort(String port) {
+    setProperty("port", port);
+  }
 
-    public String getPort() {
-        return getPropertyAsString("port", "" + DEFAULT_WS_PORT).trim();
-    }
+  public String getPath() {
+    return getPropertyAsString("path");
+  }
 
-    public void setPort(String port) {
-        setProperty("port", port);
-    }
+  public void setPath(String path) {
+    setProperty("path", path);
+  }
 
-    public String getPath() {
-        return getPropertyAsString("path");
-    }
-
-    public void setPath(String path) {
-        setProperty("path", path);
-    }
-
-    @Override
-    protected Logger getLogger() {
-        return log;
-    }
+  @Override
+  protected Logger getLogger() {
+    return log;
+  }
 }
